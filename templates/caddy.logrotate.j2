@@ -1,0 +1,15 @@
+{{ ansible_managed | comment }}
+{{ caddy_log_folder }}/*.log {
+    daily
+    compress
+    rotate {{ caddy_logrotate_days }}
+    missingok
+    nocreate
+    create 0640 {{ caddy_user }} {{ caddy_group }}
+    dateext
+    dateformat _%Y%m%d
+    sharedscripts
+    prerotate
+        test ! -x /usr/sbin/sarg-reports || /usr/sbin/sarg-reports daily
+    endscript
+}

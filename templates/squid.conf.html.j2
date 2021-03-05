@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Squid config for {{ ansible_hostname }}.{{ ansible_domain }}</title>
+    <style>
+       /* Define custom styles to include with class="" */
+       .logo    { width: 400px; padding-left: 10px }
+       .line    { border-bottom: 1px solid black; position: absolute; }
+       .p-head  { padding-left: 0px; padding-right: 0px; font-size: 16px }
+       /* Define attribute default styles */
+       body     { background-color: white; text-align: left; color: black; font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; }
+       header   { padding-bottom: 5px; padding-top: 10px; padding-left: 10px; background-color: #aa8c41; }
+       article  { padding-left: 10px; padding-right: 0px; }
+       footer   { padding-left: 10px; padding-right: 0px; }
+       p        { padding-left: 0px; padding-right: 0px; font-size: 12px }
+       hr       { margin-left: 0px; margin-right: 0px; border-collapse: collapse; border: 1px solid #999; }
+       code     { background-color: #eee; font-size: 16px; font-family: monospace; display: block; text-align: left; border: 1px solid #999; padding: 5px;}
+       table    { font-size: 16px; font-family: monospace; border: 1px solid #999; border-collapse: collapse; border-style: dotted; }
+       th       { padding-left: 3px; padding-right: 3px; border: 1px solid #999; border-collapse: collapse; border-style: dotted; }
+       td       { padding-left: 3px; padding-right: 3px; border: 1px solid #999; border-collapse: collapse; border-style: dotted; }
+       tr       { padding-left: 3px; padding-right: 3px; border: 1px solid #999; border-collapse: collapse; border-style: dotted; }
+       /* Define link styles */
+       /* unvisited link */
+       a:link    { color: #aa8c41; text-decoration: none;}
+       /* visited link */
+       a:visited { color: #aa8c41; text-decoration: none;}
+       /* mouse over link */
+       a:hover   { color: black; text-decoration: underline;}
+       /* selected link */
+       a:active  { color: blue; text-decoration: underline;}
+    </style>
+</head>
+<body >
+  <!-- Define header content -->
+  <header>
+    <h2>Squid config for {{ ansible_hostname }}.{{ ansible_domain }}</h2>
+  </header>
+  <!-- Define article (main) content -->
+  <article>
+      <p class="p-head"><b># Defined Safe Ports</b></p>
+{% for safe_port in squid_safe_ports %}
+      {{ safe_port }}, 
+{% endfor %}
+      <p>&nbsp;</p>
+      <p class="p-head"><b># Defined SSL Ports</b></p>
+{% for ssl_port in squid_ssl_ports %}
+      {{ ssl_port }}, 
+{% endfor %}
+      <p>&nbsp;</p>
+      <p class="p-head"><b># Defined Methods</b></p>
+      <p>acl Safe_method method CONNECT GET HEAD POST</p>
+      <p>acl CONNECT method CONNECT</p>
+      <p>&nbsp;</p>
+      <p class="p-head"><b># Defined Access Rules</b></p>
+      <table border="1">
+          <tr>
+            <th><b>Type</b></th>
+            <th><b>Access</b></th>
+            <th><b>Source ACL</b></th>
+            <th><b>Destination ACL</b></th>
+          </tr>
+          <tr>
+            <td>http_access</td>
+            <td>allow</td>
+            <td>localhost</td>
+            <td>manager</td>
+          </tr>
+          <tr>
+            <td>http_access</td>
+            <td>deny</td>
+            <td>!Safe_ports</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>http_access</td>
+            <td>deny</td>
+            <td>CONNECT</td>
+            <td>!SSL_ports</td>
+          </tr>
+          <tr>
+            <td>http_access</td>
+            <td>deny</td>
+            <td>!Safe_method</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>http_access</td>
+            <td>allow</td>
+            <td>localhost</td>
+            <td></td>
+          </tr>
+{% if squid_dst_acls | length > 0 %}
+{%   for acl in squid_dst_acls %}
+{%     if acl.type is defined %}
+          <tr>
+            <td>http_access</td>
+            <td>{{ acl.access }}</td>
+            <td><a href="squid_acls/acl_src_{{ acl.source }}.lst" target="_blank">{{ acl.source }}</a></td>
+            <td><a href="squid_acls/acl_dst_{{ acl.name }}.lst" target="_blank">{{ acl.name }}</a> {%- if acl.content is defined %}{{ acl.content }}{%- endif %}</td>
+          </tr>
+{%     else %}
+          <tr>
+            <td>http_access</td>
+            <td>{{ acl.access }}</td>
+            <td><a href="squid_acls/acl_src_{{ acl.source }}.lst" target="_blank">{{ acl.source }}</a></td>
+            <td></td>
+          </tr>
+{%     endif %}
+{%   endfor %}
+{% endif %}
+          <tr>
+            <td>http_access</td>
+            <td>deny</td>
+            <td>all</td>
+            <td></td>
+          </tr>
+        </table>
+{% if squidguard_enabled is defined and squidguard_enabled is sameas true %}
+      <p class="p-head"><b># Defined Access Rules</b></p>
+      <table border="1">
+          <tr>
+            <th><b>Categorie</b></th>
+            <th><b>Access</b></th>
+            <th><b>Log</b></th>
+            <th><b>Redirect</b></th>
+          </tr>
+{% if squidguard_blacklist | length > 0 %}
+{%   for blacklist in squidguard_blacklist %}
+          <tr>
+            <td>{{ blacklist.name }}</td>
+            <td>{{ blacklist.access }}</td>
+            <td>{%- if blacklist.log is defined and blacklist.log is sameas true %}access_{{ blacklist.name }}.log{%- endif %}</td>
+            <td>{%- if blacklist.redirect_url is defined and blacklist.redirect_url | length > 0 %}302:{{ blacklist.redirect_url }}{%- endif %}</td>
+          </tr>
+{%   endfor %}
+{% endif %}
+        </table>
+{% endif %}
+  </article>
+  <!-- Define footer content -->
+  <footer>
+    <hr />
+    <h6>&copy; | Proxy: {{ ansible_hostname }}.{{ ansible_domain }}</h6>
+  </footer>
+</body>
+</html>

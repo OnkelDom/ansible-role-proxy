@@ -1,0 +1,16 @@
+{{ ansible_managed | comment }}
+{{ socks_log_folder }}/*.log {
+    daily
+    compress
+    delaycompress
+    rotate {{ socks_logrotate_days }}
+    missingok
+    nocreate
+    create 0640 {{ socks_user }} {{ socks_group }}
+    dateext
+    dateformat _%Y%m%d
+    sharedscripts
+    postrotate
+      /usr/bin/systemctl reload danted.service 2>/dev/null
+    endscript
+}

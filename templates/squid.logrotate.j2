@@ -1,0 +1,19 @@
+{{ ansible_managed | comment }}
+{{ squid_log_folder }}/*.log {
+    daily
+    delaycompress
+    compress
+    rotate {{ squid_logrotate_days }}
+    missingok
+    notifempty
+    create 0640 {{ squid_user }} {{ squid_group }}
+    dateext
+    dateformat _%Y%m%d
+    sharedscripts
+    prerotate
+        test ! -x /usr/sbin/sarg-reports || /usr/sbin/sarg-reports daily
+    endscript
+    postrotate
+        test ! -e {{ socks_pid_folder }}/squid.pid || test ! -x /usr/sbin/squid || /usr/sbin/squid -k rotate 2>/dev/null
+    endscript
+}

@@ -1,0 +1,305 @@
+---
+
+https://packages.ubuntu.com/focal/amd64/squid/filelist
+
+squid (proxy:proxy)
+
+/etc/apparmor.d/usr.sbin.squid
+/etc/init.d/squid
+/etc/logrotate.d/squid
+/etc/resolvconf/update-libc.d/squid
+/etc/squid/conf.d/debian.conf
+/etc/squid/errorpage.css
+/etc/squid/squid.conf
+/etc/ufw/applications.d/squid
+/lib/systemd/system/squid.service
+
+- name: squid | install packages
+  apt:
+    name: squid
+    state: present
+  become: true
+  tags: squid
+
+- name: squidguard | install packages
+  apt:
+    name: squidguard
+    state: present
+  when: squidguard_enabled
+  become: true
+  tags:
+    - squid
+    - squidguard
+
+- name: squid | generate log folder
+  file:
+    path: "{{ squidguard_log_folder }}"
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0755
+    state: directory
+  become: true
+  tags: squid
+
+- name: squid | remove default debian config
+  file:
+    path: "/etc/squid/conf.d/debian.conf"
+    state: absent
+  become: true
+  tags: squid
+
+- name: squid | configure logrotate
+  template:
+    src: squid.logrotate.j2
+    dest: "/etc/logrotate.d/squid4"
+    owner: root
+    group: root
+    mode: 0644
+  become: true
+  tags: squid
+
+- name: squid | create conf.d folders in /etc/squid
+  file:
+    path: "{{ squid_config_dir }}/conf.d"
+    state: directory
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0755
+  become: true
+  tags: squid
+
+- name: squid | create /var/log/squid
+  file:
+    path: /var/log/squid
+    state: directory
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0755
+  become: true
+  tags: squid
+
+- name: squid | configure source acls and create files with content
+  template:
+    src: squid_acl_src.conf.j2
+    dest: "{{ squid_config_dir }}/conf.d/acl_src_{{ item.name }}.lst"
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0644
+  with_items: "{{ squid_src_acls }}"
+  when: item.source is defined
+  notify: reload squid
+  become: true
+  tags:
+    - squid
+    - squid_acls
+
+- name: squid | copy source acls from files
+  copy:
+    src: "squid/acl_src_{{ item.file }}.lst"
+    dest: "{{ squid_config_dir }}/conf.d/acl_src_{{ item.file }}.lst"
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0644
+    force: "{{ item.force | default('yes') }}"
+  with_items: "{{ squid_src_acls }}"
+  when: item.file is defined
+  notify: reload squid
+  become: true
+  tags:
+    - squid
+    - squid_acls
+
+- name: squid | configure destination acls and create with from content
+  template:
+    src: squid_acl_dst.conf.j2
+    dest: "{{ squid_config_dir }}/conf.d/acl_dst_{{ item.name }}.lst"
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0644
+  with_items: "{{ squid_dst_acls }}"
+  when: item.destination is defined
+  notify: reload squid
+  become: true
+  tags:
+    - squid
+    - squid_acls
+
+- name: squid | copy destination acls from files
+  copy:
+    src: "proxy_{{ ansible_proxy }}/acl_dst_{{ item.file }}.lst"
+    dest: "{{ squid_config_dir }}/conf.d/acl_dst_{{ item.file }}.lst"
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0644
+    force: "{{ item.force | default('yes') }}"
+  with_items: "{{ squid_dst_acls }}"
+  when: item.file is defined
+  notify: reload squid
+  become: true
+  tags:
+    - squid
+    - squid_acls
+
+- name: squid | configure config
+  template:
+    src: squid.conf.j2
+    dest: "{{ squid_config_dir }}/squid.conf"
+    owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+    mode: 0644
+  notify: reload squid
+  become: true
+  tags:
+    - squid
+    - squid_acls
+
+- block:
+  - name: squid | generate ufw application file
+    template:
+      src: squid.ufw.app.j2
+      dest: "/etc/ufw/applications.d/squid"
+      owner: root
+      group: root
+      mode: 0644
+    register: __ufw_squid_app
+    become: true
+    tags: squid
+
+  - name: squid | reload ufw
+    command: ufw reload
+    when: __ufw_squid_app.changed
+    become: true
+    tags: squid
+
+  - name: squid | allow port on ufw
+    ufw:
+      rule: allow
+      name: Squid
+    become: true
+    tags: squid
+  when: "'ufw' in ansible_facts.packages"
+
+- block:
+  - name: squid | create errors.d folders in /etc/squid
+    file:
+      path: "{{ squid_config_dir }}/errors.d"
+      state: directory
+      owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+      mode: 0755
+    become: true
+    tags: squid
+
+  - name: squid | copy squid templates
+    template:
+      src: "{{ squid_template_file }}"
+      dest: "{{ squid_config_dir }}/errors.d/ERR_{{ item.name | upper }}"
+      owner: "{{ squid_user }}"
+    group: "{{ squid_group }}"
+      mode: 0644
+    with_items: "{{ squid_template_errors }}"
+    notify: restart squid
+    tags: squid
+    become: true
+  when: squid_template
+
+- block:
+  - name: caddy | create squid_acls folders in webserver path
+    file:
+      path: "{{ caddy_web_path }}/squid_acls"
+      state: directory
+      owner: "{{ caddy_user }}"
+      group: "{{ caddy_group }}"
+      mode: 0755
+    become: true
+    tags: squid
+
+  - name: caddy | caddy - generate html file
+    template:
+      src: caddy_squid.html.j2
+      dest: "{{ caddy_web_path }}/squid.html"
+      owner: "{{ caddy_user }}"
+      group: "{{ caddy_group }}"
+      mode: 0644
+    become: true
+    tags:
+      - squid
+      - squid_acls
+      - squidguard_acls
+
+  - name: caddy | caddy - configure src acls and create files from content
+    template:
+      src: squid_acl_src.conf.j2
+      dest: "{{ caddy_web_path }}/squid_acls/acl_src_{{ item.name }}.lst"
+      owner: "{{ caddy_user }}"
+      group: "{{ caddy_group }}"
+      mode: 0640
+    with_items: "{{ squid_src_acls }}"
+    when: item.source is defined
+    become: true
+    tags:
+      - squid
+      - squid_acls
+
+  - name: caddy | caddy - copy src acl files
+    copy:
+      src: "squid/acl_src_{{ item.name }}.lst"
+      dest: "{{ caddy_web_path }}/squid_acls/acl_src_{{ item.name }}.lst"
+      owner: "{{ caddy_user }}"
+      group: "{{ caddy_group }}"
+      mode: 0640
+    with_items: "{{ squid_src_acls }}"
+    when: item.file is defined
+    become: true
+    tags:
+      - squid
+      - squid_acls
+
+  - name: caddy | caddy - configure dst acls and create files from content
+    template:
+      src: squid_acl_dst.conf.j2
+      dest: "{{ caddy_web_path }}/squid_acls/acl_dst_{{ item.name }}.lst"
+      owner: "{{ caddy_user }}"
+      group: "{{ caddy_group }}"
+      mode: 0640
+    with_items: "{{ squid_dst_acls }}"
+    when: item.destination is defined
+    become: true
+    tags:
+      - squid
+      - squid_acls
+
+  - name: caddy | caddy - copy dst acl files
+    copy:
+      src: "squid/acl_dst_{{ item.name }}.lst"
+      dest: "{{ caddy_web_path }}/squid_acls/acl_dst_{{ item.name }}.lst"
+      owner: "{{ caddy_user }}"
+      group: "{{ caddy_group }}"
+      mode: 0640
+    with_items: "{{ squid_dst_acls }}"
+    when: item.file is defined
+    become: true
+    tags:
+      - squid
+      - squid_acls
+  when: squid_html_output
+
+- name: squid | generate systemd service unit
+  template:
+    src: squid.service.j2
+    dest: "/lib/systemd/system/squid.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart squid
+  become: true
+  tags: squid
+
+- name: squid | start and enable service
+  systemd:
+    daemon_reload: true
+    name: squid
+    state: started
+    enabled: true
+  become: true
+  tags: squid

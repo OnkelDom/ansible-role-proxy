@@ -1,0 +1,48 @@
+---
+- name: reload danted
+  systemd:
+    name: danted
+    state: reloaded
+  tags: socks
+
+- name: restart danted
+  systemd:
+    daemon_reload: true
+    name: danted
+    state: restarted
+  tags: socks
+
+- name: restart squid
+  systemd:
+    daemon_reload: true
+    name: squid
+    state: restarted
+  become: true
+  tags: squid
+
+- name: reload squid
+  systemd:
+    name: squid
+    state: reloaded
+  become: true
+  tags: squid
+
+- name: reload squidguard
+  command: "/usr/lib/squidguard -b -d -C all -c {{ squid_config_dir }}/{{ squidguard_config_file }}"
+  become: true
+  tags: squidguard
+
+- name: restart caddy
+  systemd:
+    daemon_reload: true
+    name: caddy
+    state: restarted
+  tags: caddy
+  become: true
+
+- name: reload caddy
+  systemd:
+    name: caddy
+    state: reloaded
+  tags: caddy
+  become: true

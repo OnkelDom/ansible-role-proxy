@@ -1,0 +1,20 @@
+---
+- name: pac | generate pac-file
+  template:
+    src: "proxy.pac.j2"
+    dest: "{{ caddy_web_path }}/proxy.pac"
+    mode: 0755
+    owner: root
+    group: root
+  become: true
+  tags: pac
+
+- name: pac | symlink for wpad.dat to proxy.pac
+  file:
+    src: "{{ caddy_web_path }}/proxy.pac"
+    path: "{{ caddy_web_path }}/wpad.dat"
+    owner: "{{ caddy_user }}"
+    group: "{{ caddy_group }}"
+    state: link
+  become: true
+  tags: pac

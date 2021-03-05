@@ -1,0 +1,21 @@
+// Proxy PAC-File
+// Ansible Managed File
+function FindProxyForURL(url, host)
+  {
+  //set variables
+  var client = myIpAddress();
+  var direct = "DIRECT";
+{% if pac_file_proxys | length > 0 %}
+{%  for proxy in pac_file_proxys %}
+  var {{ proxy.name }} = "PROXY {{ proxy.address }}"
+{%  endfor%}
+{% endif %}
+  // defined rules
+{% if pac_file_rules | length > 0 %}
+{%  for rule in pac_file_rules %}
+  if ({{ rule.type }}(host, {{ rule.name }})) { return {{ rule.return }}; }
+{%  endfor%}
+{% endif %}
+  // return proxy for any not defined acls"
+  return proxy;
+}

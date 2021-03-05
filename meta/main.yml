@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: Dominik Lenhardt
+  description: Ansible role for installing and configuring proxy servers
+  license: "MIT"
+  min_ansible_version: 2,5
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - bionic
+  galaxy_tags:
+  - system
+  - network
+  - linux
+  - proxy
+  - squid
+  - socks
+  - dante
+  - pac
+  - wpad
+dependencies: []

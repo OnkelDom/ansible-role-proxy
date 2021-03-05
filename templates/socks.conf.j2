@@ -1,0 +1,76 @@
+{{ ansible_managed | comment }}
+# /etc/danted.conf
+# dante with authentication and ipv6 support
+# see: https://www.inet.no/dante/doc/1.4.x/config/ipv6.html
+
+# logging
+errorlog: syslog stderr {{ socks_log_folder }}/error.log
+logoutput: syslog stdout {{ socks_log_folder }}/access.log
+{% if socks_debug | length > 0 %}
+debug: {{ socks_debug }}
+{% endif %}
+
+# server address specification
+internal.protocol: ipv4 {% if socks_bind_ipv6_enabled %}ipv6
+{% endif %}
+
+external.protocol: ipv4 {% if socks_bind_ipv6_enabled %}ipv6
+{% endif %}
+
+internal: {{ socks_bind_ip }} port = {{ socks_port }}
+{% if socks_bind_ipv6_enabled %}
+internal: {{ socks_bind_ipv6 }} port = {{ socks_port }}
+{% endif %}
+
+external: {{ socks_bind_external_interface }}
+
+# server identities (not needed on solaris)
+user.privileged: {{ socks_user }}
+user.notprivileged: nobody
+
+#reverse dns lookup
+#srchost: nodnsmismatch
+
+# authentication methods
+clientmethod: none
+socksmethod: none
+
+#
+# Defined access rules
+#
+
+{% if socks_access_rules is defined %}
+{%  for address in socks_access_rules %}
+{{ address.name | comment }}
+{%   for src in address.src %}
+client {{ adress.access | default('pass') }} {
+    from: {{ src }}/32 port 1-65535 to: 0.0.0.0/0
+    {{ address.log | default("log: connect error")}}
+}
+{% if address.dst is defined %}
+{%   for value in address.dst %}
+socks {{ adress.access | default('pass') }} {
+    from: {{ src }}/32 to: {{ value }}
+    socksmethod: none
+    {{ address.log | default("log: connect error")}}
+}
+{%   endfor %}
+{%   else %}
+socks {{ adress.access | default('pass') }} {
+    from: {{ src }}/32 to: 0.0.0.0/0
+    socksmethod: none
+    {{ address.log | default("log: connect error")}}
+}
+{% endif %}
+
+{%   endfor %}
+{%   endfor %}
+{% endif %}
+#
+# Block all undefined
+#
+socks block {
+    from: 0.0.0.0/0 to: 0.0.0.0/0
+    socksmethod: none
+    log: error connect disconnect
+}

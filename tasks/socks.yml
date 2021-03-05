@@ -1,0 +1,105 @@
+---
+- name: socks | install packages
+  apt:
+    name:
+      - "dante-server"
+      - "dante-client"
+    state: present
+  become: true
+  tags: socks
+
+- name: socks | generate log and pid folder
+  file:
+    path: "{{ item }}"
+    owner: "{{ socks_user }}"
+    group: "{{ socks_group }}"
+    mode: 0755
+    state: directory
+  with_items:
+    - "{{ socks_log_folder }}"
+    - "{{ socks_pid_folder }}"
+  become: true
+  tags: socks
+
+- name: socks | generate config file
+  template:
+    src: "socks.conf.j2"
+    dest: "{{ socks_config }}"
+    owner: "{{ socks_user }}"
+    group: "{{ socks_group }}"
+    mode: 0640
+    validate: "/usr/sbin/danted -V -f %s"
+  notify: reload danted
+  become: true
+  tags: 
+    - socks
+    - socks_acls
+
+- name: socks | generate logrotate file
+  template:
+    src: "socks.logrotate.j2"
+    dest: "/etc/logrotate.d/danted"
+    owner: "root"
+    group: "root"
+    mode: 0644
+  become: true
+  tags: socks
+
+- name: socks | generate systemd service unit
+  template:
+    src: socks.service.j2
+    dest: "/lib/systemd/system/danted.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart danted
+  become: true
+  tags: socks
+
+- block:
+  - name: socks | generate ufw application file
+    template:
+      src: socks.ufw.app.j2
+      dest: "/etc/ufw/applications.d/danted"
+      owner: root
+      group: root
+      mode: 0644
+    register: __ufw_socks_app
+    become: true
+    tags: socks
+
+  - name: socks | reload ufw
+    command: ufw reload
+    when: __ufw_socks_app.changed
+    become: true
+    tags: socks
+
+  - name: socks | allow port on ufw
+    ufw:
+      rule: allow
+      name: Danted
+    become: true
+    tags: socks
+  when: "'ufw' in ansible_facts.packages"
+
+- name: socks | generate html config
+  template:
+    src: socks.conf.html.j2
+    dest: "{{ caddy_web_path }}/socks.html"
+    owner: "{{ caddy_user }}"
+    group: "{{ caddy_group }}"
+    mode: 0644
+  when: socks_html_output
+  become: true
+  tags:
+    - socks
+    - socks_acls
+
+- name: socks | start and enable service
+  systemd:
+    daemon_reload: true
+    name: danted
+    enabled: true
+    state: started
+  become: true
+  tags: sockd

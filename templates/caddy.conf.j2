@@ -1,0 +1,51 @@
+{{ ansible_managed | comment }}
+
+{
+  auto_https off
+  storage file_system {
+    root /var/lib/caddy/.storage
+  }
+{% if caddy_squidguard_enable %}
+  order cgi last
+{% endif %}
+}
+
+:{{ caddy_port }} {
+  root * /var/www/
+  metrics /metrics
+  log {
+    format json
+    output file /var/log/caddy/access.log
+  }
+{% if caddy_forbidden_ips_enable %}
+  @forbidden {
+    remote_ip {{ caddy_forbidden_ips }}
+  }
+  respond @forbidden {% if caddy_forbidden_ips_text | length > 0 %}"{{ caddy_forbidden_ips_text }}"{% endif %} 403
+{% endif %}
+{% if caddy_allowed_ips_enable %}
+  @allowed {
+    not remote_ip {{ caddy_allowed_ips }}
+  }
+  respond @allowed {% if caddy_allowed_ips_text | length > 0 %}"{{ caddy_allowed_ips_text }}"{% endif %} 403
+{% endif %}
+{% if squidguard_enabled %}
+  cgi /cgi-bin/* /var/www/cgi-bin/squidguard.cgi {
+    script_name /cgi-bin/squidguard.cgi
+  }
+{% endif %}
+{% if pac_enabled | default(true) %}
+  redir /proxypac/proxy.pac /proxy.pac 301
+  redir /proxypac/wpad.dat  /wpad.dat  301
+  route {
+    header /proxy.pac Content-Type "application/x-ns-proxy-autoconfig"
+    header /wpad.dat  Content-Type "application/x-ns-proxy-autoconfig"
+  }
+{% endif %}
+{% if caddy_basic_auth %}
+  @basicauthpath path {{ caddy_basic_auth_paths }}
+  basicauth @basicauthpath {
+    {{ caddy_basic_auth_user }} {{ caddy_basic_auth_pass }}
+  }
+{% endif %}
+}
