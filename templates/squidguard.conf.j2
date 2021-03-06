@@ -33,7 +33,7 @@ dest {{ blacklist.name }} {
 #
 acl {
   default {
-    pass {% if squidguard_blacklist | length > 0 %}{% for blacklist in squidguard_blacklist %}{% if blacklist.access == "deny" %} !{{ blacklist.name }} {% elif blacklist.access == "allow" %} {{ blacklist.name }} {% endif %}{% endfor %}{% endif %}{% if squidguard_web_allow_all is defined and squidguard_web_allow_all is sameas true %} all{% endif %}
+    pass {% if squidguard_blacklist | length > 0 %}{% for blacklist in squidguard_blacklist %}{% if blacklist.access == "deny" %} !{{ blacklist.name }} {% elif blacklist.access == "allow" %} {{ blacklist.name }} {% endif %}{% endfor %}{% endif %}{% if squidguard_web_allow_all is defined and squidguard_web_allow_all is sameas true %} all{% else %} none{% endif %}
 
     redirect {{ squidguard_redirect_url }}
   }

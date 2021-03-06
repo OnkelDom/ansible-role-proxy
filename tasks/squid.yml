@@ -282,7 +282,7 @@ squid (proxy:proxy)
     tags:
       - squid
       - squid_acls
-  when: squid_html_output
+  when: squid_html_output and caddy_enabled
 
 - name: squid | generate systemd service unit
   template:

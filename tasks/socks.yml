@@ -89,7 +89,7 @@
     owner: "{{ caddy_user }}"
     group: "{{ caddy_group }}"
     mode: 0644
-  when: socks_html_output
+  when: socks_html_output and caddy_enabled
   become: true
   tags:
     - socks

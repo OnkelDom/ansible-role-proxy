@@ -23,3 +23,23 @@
     - caddy
     - socks
     - squid
+
+- name: install caddyserver
+  include_tasks: caddy.yml
+  when: caddy_enabled
+
+- name: install pac
+  include_tasks: pac.yml
+  when: pac_enabled and caddy_enabled
+
+- name: install socks
+  include_tasks: socks.yml
+  when: socks_enabled
+
+- name: install squid
+  include_tasks: squid.yml
+  when: squid_enabled
+
+- name: install squidguard
+  include_tasks: squidguard.yml
+  when: squid_enabled and squidguard_enabled

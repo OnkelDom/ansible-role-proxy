@@ -12,6 +12,7 @@ proxy_env: {}
 #
 # Sockd default settings
 #
+socks_enabled: true
 socks_user: proxy
 socks_group: proxy
 socks_bind_ip: "0.0.0.0"
@@ -42,6 +43,7 @@ socks_access_rules: {}
 #
 # Caddyserver default settings
 #
+caddy_enabled: true
 caddy_group: www-data
 caddy_user: www-data
 caddy_logrotate_days: 14
@@ -102,6 +104,7 @@ pac_file_rules:
 #
 # Squid default settings
 #
+squid_enabled: true
 squid_html_output: true
 squid_user: proxy
 squid_group: proxy
@@ -265,13 +268,12 @@ squid_dst_acls:
 #
 # SquidGuard default settings
 #
-squidguard_html_output: true
 squidguard_enabled: true
+squidguard_html_output: true
 squidguard_log_folder: /var/log/squidguard
 squidguard_script_dir: /usr/local/bin/
-squidguard_redirect_url: "http://{{ caddy_squidguard_address }}/cgi-bin/squidguard.cgi?clientaddr=%a&clientname=%n&clientuser=%i&srcclass=%s&targetclass=%t&url=%u"
+squidguard_redirect_url: "http://{{ ansible_hostname }}.{{ ansible_domain }}/cgi-bin/squidguard.cgi?clientaddr=%a&clientname=%n&clientuser=%i&srcclass=%s&targetclass=%t&url=%u"
 squidguard_config_file: squidguard.conf
-squidguard_logdir: /var/log/squidguard
 squidguard_dbhome: "{{ squid_config_dir }}/guard.d/blacklists"
 squidguard_web_allow_all: true
 squidguard_blacklist_url: "ftp://ftp.univ-tlse1.fr/pub/reseau/cache/squidguard_contrib/blacklists.tar.gz"
